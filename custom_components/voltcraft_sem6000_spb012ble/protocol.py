@@ -117,10 +117,21 @@ class SwitchNotifyPayload(NotifyPayload):
 ParsedNotifyPayload = SwitchNotifyPayload | MeasureNotifyPayload
 
 class LoginMode:
-    """Helper to build login payload."""
+    """Helper to build login and PIN reset payloads."""
 
     @staticmethod
-    def build_payload(pin: str = "0000") -> bytes:
-        # Pin is currently not dynamically built into the hex string here, 
-        # it matches the standard login for "0000"
-        return bytes.fromhex("0f0c170000000000000000000018ffff")
+    def _pin_digits(pin: str) -> bytearray:
+        if len(pin) != 4 or not pin.isdigit():
+            raise ValueError("Voltcraft PIN must be exactly four digits")
+
+        return bytearray(int(digit) for digit in pin)
+
+    @classmethod
+    def build_payload(cls, pin: str = "0000") -> bytearray:
+        return Command.LOGIN.build_payload(bytearray([0x00]) + cls._pin_digits(pin) + bytearray(4))
+
+    @classmethod
+    def build_reset_payload(cls, current_pin: str = "0000", new_pin: str = "0000") -> bytearray:
+        return Command.LOGIN.build_payload(
+            bytearray([0x02]) + cls._pin_digits(new_pin) + cls._pin_digits(current_pin)
+        )
